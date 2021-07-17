@@ -999,7 +999,6 @@ function addCloseButton() {
 function addPrintButton() {
     let printButton = document.createElement("a");
     printButton.className = "simple-print simple-control";
-    // printButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M49,0H15v19H0v34h15v11h34V53h15V19H49V0z M17,2h30v17H17V2z M47,62H17V40h30V62z M62,21v30H49V38H15v13H2V21h13h34H62z"/><rect x="6" y="26" width="4" height="2"/><rect x="12" y="26" width="4" height="2"/><rect x="22" y="46" width="20" height="2"/><rect x="22" y="54" width="20" height="2"/></svg>Print';
     return printButton;
 }
 
@@ -1017,7 +1016,6 @@ function addDelModeButton() {
 function addShareButton() {
     let shareButton = document.createElement("a");
     shareButton.className = "premium-feature simple-share simple-control";
-    // shareButton.innerHTML = '<div class="simple-share-dropdown" onclick="window.getSelection().selectAllChildren(this);"></div><div class="simple-share-alert">You have too many shared articles - the limit is 100. Please remove some from <a href=\'https://justread.link/dashboard\'>your user page</a> before adding more.</div><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 95.421 90.213"><path d="M6.301,90.211C2.818,90.209,0.002,87.394,0,83.913l0,0V18.394c0.002-3.481,2.818-6.297,6.301-6.299l0,0h33.782l-9.003,9H9  v60.117l57.469,0.002V69.125l9.002-9l-0.002,23.788c-0.003,3.479-2.818,6.296-6.3,6.3l0,0L6.301,90.211L6.301,90.211z"></path><path d="M66.171,11.301V0l29.25,29.25L66.046,58.625v-11.75c0,0-14.586-2.894-29.583,6.458  c-8.209,5.084-13.752,11.773-17.167,17.042c0,0,1.11-18.25,11.61-34.875C44.033,14.716,66.171,11.301,66.171,11.301z"></path><path fill="#000000" d="M225.3,90.211c-3.482-0.002-6.299-2.817-6.301-6.298l0,0V18.394c0.002-3.481,2.818-6.297,6.301-6.299l0,0  h33.783l-9.004,9H228v60.117l57.47,0.002V69.125l9.002-9l-0.002,23.788c-0.003,3.479-2.818,6.296-6.3,6.3l0,0L225.3,90.211  L225.3,90.211z"></path><path fill="#000000" d="M285.171,11.301V0l29.25,29.25l-29.375,29.375v-11.75c0,0-17.23-1.192-29.584,6.458  c-8.209,5.084-13.104,10.167-17.166,17.042c0,0,1.109-18.25,11.609-34.875C263.033,14.716,285.171,11.301,285.171,11.301z"></path></svg>';
     return shareButton;
 }
 
