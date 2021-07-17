@@ -1437,7 +1437,7 @@ let editorShortcutsEnabled = false;
 function handleEnd(e) {
     let isTouch = e.type === "touchend";
 
-    if(typeof editBar === "undefined") {
+    if(false) {
         editBar = createEditBar();
         editBar.style.display = "none";
         simpleArticleIframe.body.appendChild(editBar);
