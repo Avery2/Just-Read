@@ -1495,19 +1495,20 @@ function handleEnd(e) {
         editorShortcutsEnabled = true;
         lastMessage = sel;
 
-        editBar.style.display = "block";
+        // editBar.style.display = "block";
         const r = rangy.getSelection(simpleArticleIframe).nativeSelection.getRangeAt(0).getBoundingClientRect();
-        editBar.style.top = (r.top + simpleArticleIframe.defaultView.pageYOffset - 60) + 'px';
-        editBar.style.left = (r.left + r.width / 2 + simpleArticleIframe.defaultView.pageXOffset - 105) + 'px';
-    } else if(!editBar.contains(e.target)) {
-        hideToolbar();
-
-        if(simpleArticleIframe.querySelector(".jr-adding")
-        && simpleArticleIframe.querySelector(".jr-adding textarea").value === ""
-        && !simpleArticleIframe.querySelector(".jr-adding").contains(e.target)) {
-            cancelComment(null, simpleArticleIframe.querySelector(".jr-adding"));
-        }
+        // editBar.style.top = (r.top + simpleArticleIframe.defaultView.pageYOffset - 60) + 'px';
+        // editBar.style.left = (r.left + r.width / 2 + simpleArticleIframe.defaultView.pageXOffset - 105) + 'px';
     }
+    // else if (!editBar.contains(e.target)) {
+    //     hideToolbar();
+
+    //     if(simpleArticleIframe.querySelector(".jr-adding")
+    //     && simpleArticleIframe.querySelector(".jr-adding textarea").value === ""
+    //     && !simpleArticleIframe.querySelector(".jr-adding").contains(e.target)) {
+    //         cancelComment(null, simpleArticleIframe.querySelector(".jr-adding"));
+    //     }
+    // }
 }
 
 let highlightPicker, textPicker;
@@ -1818,7 +1819,7 @@ function handleMouseMove(e) {
     const paddingTop = parseInt(window.getComputedStyle(simpleArticleIframe.querySelector(".simple-container")).getPropertyValue("padding-top"));
     if(e.clientX > leftEdge
     && e.clientX < rightEdge) {
-        simpleArticleIframe.body.classList.add("simple-show-adder");
+        // simpleArticleIframe.body.classList.add("simple-show-adder");
         addCommentBtn.style.top = e.clientY - paddingTop + simpleArticleIframe.defaultView.scrollY - 27;
     } else {
         simpleArticleIframe.body.classList.remove("simple-show-adder");
