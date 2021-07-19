@@ -640,7 +640,7 @@ function closeOverlay() {
     window.removeEventListener("resize", hideToolbar);
 
     // Fade out
-    simpleArticle.classList.add("simple-fade-up");
+    // simpleArticle.classList.add("simple-fade-up");
 
     // Remove some general listeners
     simpleArticleIframe.removeEventListener("mouseup", handleEnd);
