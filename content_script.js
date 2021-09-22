@@ -2727,8 +2727,10 @@ function createSimplifiedOverlay() {
             }
 
             // Listen for CTRL/CMD + F or F3
-            if(e.keyCode === 114 || ((e.ctrlKey || e.metaKey) && e.keyCode === 70)) {
-                find.classList.add("active");
+            if (e.keyCode === 114 || ((e.ctrlKey || e.metaKey) && e.keyCode === 70)) {
+                if (find.classList) {
+                    find.classList.add("active");
+                }
                 findInput.focus();
                 e.preventDefault();
             }
