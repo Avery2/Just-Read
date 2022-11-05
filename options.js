@@ -74,8 +74,6 @@ function getDataFromStorage(storage) {
             closeOldPage.checked = storage[key];
         } else if(key === "enable-pageCM") {
             pageCM.checked = storage[key];
-        } else if(key === "enable-highlightCM") {
-            highlightCM.checked = storage[key];
         } else if(key === "enable-linkCM") {
             linkCM.checked = storage[key];
         } else if(key === "enable-autorunCM") {
@@ -617,10 +615,6 @@ function addEventListeners() {
         chrome.storage.sync.set({"enable-pageCM": this.checked});
         chrome.runtime.sendMessage({updateCMs: "true"});
     }
-    highlightCM.onchange = function() {
-        chrome.storage.sync.set({"enable-highlightCM": this.checked});
-        chrome.runtime.sendMessage({updateCMs: "true"});
-    }
     linkCM.onchange = function() {
         chrome.storage.sync.set({"enable-linkCM": this.checked});
         chrome.runtime.sendMessage({updateCMs: "true"});
@@ -726,7 +720,6 @@ const hideSegments = document.getElementById("hideSegments"),
       openSharedPage = document.getElementById("openSharedPage"),
       closeOldPage = document.getElementById("closeOldPage"),
       pageCM = document.getElementById("pageCM"),
-      highlightCM = document.getElementById("highlightCM"),
       linkCM = document.getElementById("linkCM"),
       autorunCM = document.getElementById("autorunCM"),
       alwaysAddAR = document.getElementById("alwaysAddAR"),

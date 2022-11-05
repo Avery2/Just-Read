@@ -4,10 +4,19 @@ const jrDomain = "https://justread.link/";
 let isPremium = false;
 let jrSecret;
 let jrOpenCount;
+let hasBeenAskedForReview100 = false;
+let hasBeenAskedForReview1000 = false;
+let hasBeenAskedForReview10000 = false;
 
+let removeOrigContent;
 let chromeStorage, pageSelectedContainer;
 chrome.storage.sync.get(null, function (result) {
-    chromeStorage = result;
+    chromeStorage = result || {};
+
+    // Allow content to be removed if enabled
+    if(chromeStorage['remove-orig-content']) {
+        removeOrigContent = true;
+    }
 
     launch();
 });
@@ -72,21 +81,6 @@ function stylesheetToString(s) {
     return text;
 }
 
-// Select text from highlight functionality
-const selection = getSelectionHtml();
-function getSelectionHtml() {
-    let html = "";
-    const sel = window.getSelection();
-    if (sel.rangeCount) {
-        const container = document.createElement("div");
-        for (let i = 0, len = sel.rangeCount; i < len; ++i) {
-            container.appendChild(sel.getRangeAt(i).cloneContents());
-        }
-        html = DOMPurify.sanitize(container.innerHTML);
-    }
-    return html;
-}
-
 
 /////////////////////////////////////
 // State functions
@@ -129,6 +123,7 @@ function startSelectElement(doc) {
         if(doc.getElementById("tempStyle") != null)
             doc.getElementById("tempStyle").parentElement.removeChild(doc.getElementById("tempStyle"));
 
+        useText = false;
         launch();
     };
 
@@ -350,11 +345,6 @@ function setStylesOfStorage() {
         obj['jr-' + stylesheet] = stylesheetObj[stylesheet];
         chrome.storage.sync.set(obj);
     }
-}
-
-// Remove a given element from chrome storage
-function removeStyleFromStorage(stylesheet) {
-    chrome.storage.sync.remove(stylesheet);
 }
 
 
@@ -625,7 +615,9 @@ function getArticleAuthor() {
 function closeOverlay() {
     // Refresh the page if the content has been removed
     if(removeOrigContent) {
-        location.reload();
+        const url = new URL(window.location);
+        url.searchParams.delete('jr');
+        window.location.replace(url);
     }
 
     // Remove the GUI if it is open
@@ -1204,6 +1196,33 @@ function addPremiumNofifier() {
     simpleArticleIframe.body.appendChild(createNotification(notification));
 }
 
+function addReviewNotifier(roundedNumViews, advertisePremium, tenK) {
+    const reviewURL = navigator.userAgent.toLowerCase().indexOf('firefox') > -1 ? 'https://addons.mozilla.org/en-US/firefox/addon/just-read-ext/reviews/' : 'https://chrome.google.com/webstore/detail/just-read/dgmanlpmmkibanfdgjocnabmcaclkmod/reviews';
+
+    const notification = {
+        url: reviewURL,
+        primaryText: "Leave a review",
+        secondaryText: "Maybe later",
+    };
+
+    if(!tenK) {
+        if(advertisePremium) {
+            notification.textContent = `Wow, you've used Just Read over ${roundedNumViews} times! Would you consider <a href='https://justread.link/#get-Just-Read' target='_blank'>upgrading to Premium</a>, <a href='${reviewURL}' target='_blank'>leaving a review</a>, or sharing Just Read with your friends or on social media? I'd really appreciate it!`;
+            notification.url = "https://justread.link/#get-Just-Read";
+            notification.primaryText = "Learn more";
+        } else {
+            notification.textContent = `Wow, you've used Just Read over ${roundedNumViews} times! Would you consider <a href='${reviewURL}' target='_blank'>leaving a review</a> or sharing Just Read with your friends or on social media? I'd really appreciate it!`;
+        }
+    } else {
+        const mailtoUrl = "mailto:hello@zachsaucier.com?subject=10k%20Just%20Read%20opens";
+        notification.textContent = `You've just started Just read for the 10,000th time! I'd love to hear from you about how you use Just Read via email if you're open to it. Please reach out to <a href='${mailtoUrl}'>hello@zachsaucier.com</a>`;
+        notification.primaryText = "Open email";
+        notification.url = mailtoUrl;
+    }
+
+    simpleArticleIframe.body.appendChild(createNotification(notification));
+}
+
 function createNotification(options) {
     const oldNotification = simpleArticleIframe.querySelector(".jr-notifier");
     if(oldNotification) oldNotification.parentElement.removeChild(oldNotification);
@@ -1712,10 +1731,6 @@ function deleteSelection() {
     }
 }
 
-function noteSelectedText() {
-    highlighter.highlightSelection("note");
-}
-
 function removeHighlightFromSelectedText() {
     highlighter.unhighlightSelection();
     lastMessage = "";
@@ -1920,7 +1935,6 @@ function addComment(loc) {
         commentContainer.appendChild(styling);
 
         commentContainer.style.top = loc.y + "px";
-        // commentContainer.style.left = loc.x;
 
         comments.appendChild(commentContainer);
 
@@ -2100,8 +2114,6 @@ function gradientText(colors) {
                 grads += `linear-gradient(to right, ${colors[colorIndex]} 0%, ${colors[colorIndex]} 10%, ${colors[nextIndex]} 90%, ${colors[nextIndex]} 100%)`;
                 sizes += `100% ${lineHeight}px`;
                 poses += `0 ${lineHeight * i + parseInt(computedStyle.paddingTop)}px`;
-                // Alternatively remove $poses and use
-                // sizes += ", 100% ${lineHeight * i}";
 
                 colorIndex = nextIndex;
             }
@@ -2147,7 +2159,6 @@ function createFindBar() {
 let find,
     findInput,
     findCount,
-    findBtn,
     closeFind;
 
 let searchResultApplier;
@@ -2155,7 +2166,6 @@ function initFindBar() {
     find = simpleArticleIframe.querySelector(".simple-find");
     findInput = find.querySelector(".simple-find-input");
     findCount = find.querySelector(".simple-find-count");
-    findBtn = find.querySelector(".simple-find-btn");
     closeFind = find.querySelector(".simple-close-find");
 
     searchResultApplier = rangy.createClassApplier("simple-found");
@@ -2777,7 +2787,7 @@ function createSimplifiedOverlay() {
         const potentialNewMatches = [...document.querySelectorAll('a[href]')];
 
         potentialNewMatches.some(match => {
-            const text = match.innerText.replace(/\s/g,'').toUpperCase();
+            const text = match.innerText?.replace(/\s/g,'').toUpperCase();
             if(text === 'NEXTCHAPTER'
             || text === 'NEXT') {
                 match.className = 'jrNextChapter';
@@ -2789,7 +2799,7 @@ function createSimplifiedOverlay() {
 
     // Handle RTL sites
     const direction = window.getComputedStyle(document.body).getPropertyValue("direction");
-    if(direction === "rtl" || isRTL(contentContainer.firstChild.innerText)) {
+    if(direction === "rtl" || (contentContainer.firstChild && isRTL(contentContainer.firstChild.innerText))) {
         container.classList.add("rtl");
     }
 
@@ -2859,6 +2869,7 @@ function createSimplifiedOverlay() {
     function doStuff() {
         simpleArticleIframe = document.getElementById("simple-article").contentWindow.document;
         simpleArticleIframe.body.appendChild(container);
+        simpleArticleIframe.documentElement.setAttribute('lang', document.documentElement.getAttribute('lang'));
 
         simpleArticleIframe.body.className = window.location.hostname.replace(/\./g, "-");
 
@@ -2871,9 +2882,39 @@ function createSimplifiedOverlay() {
         // Add a notification of premium if necessary
         if(!isPremium
         && (jrOpenCount === 5
-           || jrOpenCount % 15 === 0)
-        && jrOpenCount < 151) {
+           || jrOpenCount % 33 === 0)
+        && jrOpenCount < 67) {
             addPremiumNofifier();
+        }
+
+        // Ask for a review and such]
+        if(!hasBeenAskedForReview100
+        && jrOpenCount > 100) {
+            const roundedNumViews = 100 * Math.floor( jrOpenCount / 100);
+            chrome.storage.sync.set({'jrHasBeenAskedForReview100': true});
+            if(!isPremium) {
+                addReviewNotifier(roundedNumViews, true);
+            } else {
+                addReviewNotifier(roundedNumViews);
+            }
+        }
+
+        if((!hasBeenAskedForReview1000 && hasBeenAskedForReview100)
+        && jrOpenCount > 1000) {
+            const roundedNumViews = 100 * Math.floor( jrOpenCount / 100);
+            chrome.storage.sync.set({'jrHasBeenAskedForReview1000': true});
+            if(!isPremium) {
+                addReviewNotifier(roundedNumViews, true);
+            } else {
+                addReviewNotifier(roundedNumViews);
+            }
+        }
+
+        if((!hasBeenAskedForReview10000 && hasBeenAskedForReview1000)
+        && jrOpenCount > 10000) {
+            const roundedNumViews = 100 * Math.floor( jrOpenCount / 100);
+            chrome.storage.sync.set({'jrHasBeenAskedForReview10000': true});
+            addReviewNotifier(roundedNumViews, null, true);
         }
 
         // Add MathJax support
@@ -3074,6 +3115,16 @@ function continueLoading() {
         chrome.storage.sync.set({'jrOpenCount': jrOpenCount + 1});
     }
 
+    if(typeof chromeStorage['jrHasBeenAskedForReview100'] !== "undefined") {
+        hasBeenAskedForReview100 = true;
+    }
+    if(typeof chromeStorage['jrHasBeenAskedForReview1000'] !== "undefined") {
+        hasBeenAskedForReview1000 = true;
+    }
+    if(typeof chromeStorage['jrHasBeenAskedForReview10000'] !== "undefined") {
+        hasBeenAskedForReview10000 = true;
+    }
+
     // Get current theme
     if(chromeStorage['currentTheme']) {
         theme = chromeStorage['currentTheme'];
@@ -3087,7 +3138,6 @@ function continueLoading() {
     getDomainSelectors();
 }
 
-let removeOrigContent = false;
 function fadeIn() {
     if(simpleArticleIframe.styleSheets.length > 2) {
         simpleArticle.classList.remove("no-trans");
@@ -3104,8 +3154,26 @@ function fadeIn() {
     }
 }
 
+function onSimpleArticleIframeLoaded(cb) {
+    if (simpleArticleIframe.readyState === 'complete') {
+        cb();
+        return;
+    }
+
+    simpleArticleIframe.defaultView.addEventListener("load", cb);
+}
+
 function finishLoading() {
-    // Add our required stylesheet for the article
+    const url = new URL(window.location);
+    if(url.searchParams.get('jr') !== 'on') {
+        url.searchParams.set('jr', 'on');
+        window.history.pushState({}, '', url);
+
+        // Listen for if back button is clicked
+        window.onpopstate = closeOverlay;
+    }
+
+    // Add our required stylesheet for the articlž
     if(!simpleArticleIframe.head.querySelector(".required-styles"))
         addStylesheet(simpleArticleIframe, "required-styles.css", "required-styles");
 
@@ -3130,7 +3198,10 @@ function finishLoading() {
     // Append our theme styles to the overlay
     simpleArticleIframe.head.appendChild(styleElem);
 
-    fadeIn();
+    onSimpleArticleIframeLoaded(() => {
+        chrome.runtime.sendMessage({tabOpenedJR: window.location});
+        fadeIn();
+    });
 
     // Apply the gradient text if the user has the option enabled
     if(chromeStorage["gradient-text"]) {
@@ -3165,11 +3236,6 @@ function finishLoading() {
     || chromeStorage['findbar']) {
         initFindBar();
     }
-
-    // Allow content to be removed if enabled
-    if(chromeStorage['remove-orig-content']) {
-        removeOrigContent = true;
-    }
 }
 
 
@@ -3180,21 +3246,14 @@ function finishLoading() {
 // Handle the stylesheet syncing
 /////////////////////////////////////
 const stylesheetObj = {},
-      stylesheetVersion = 4.0; // THIS NUMBER MUST BE UPDATED FOR THE STYLESHEETS TO KNOW TO UPDATE
+      stylesheetVersion = 4.3; // THIS NUMBER MUST BE UPDATED FOR THE STYLESHEETS TO KNOW TO UPDATE
 
 function launch() {
-    // Use the highlighted text if started from that
-    if(chromeStorage.textToRead) {
-        pageSelectedContainer = document.createElement("div");
-        pageSelectedContainer.className = "highlighted-html";
-        pageSelectedContainer.innerHTML = DOMPurify.sanitize(selection);
-    }
-
     // Detect past overlay - don't show another
     if(document.getElementById("simple-article") == null) {
 
         // Check to see if the user wants to select the text
-        if(chromeStorage.useText) {
+        if(typeof useText !== "undefined" && useText) {
             // Start the process of the user selecting text to read
             startSelectElement(document);
         } else {
@@ -3203,7 +3262,7 @@ function launch() {
                 addStylesheet(document, "page.css", "page-styles");
 
             // Check to see if the user wants to hide the content while loading
-            if(chromeStorage.runOnLoad) {
+            if(typeof runOnLoad !== "undefined" && runOnLoad) {
                 window.onload = checkPremium();
             } else {
                 checkPremium();

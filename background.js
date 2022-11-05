@@ -2,26 +2,25 @@ function isEmpty(obj) {
     if(obj) return Object.keys(obj).length === 0;
     return true;
 }
-function checkArrayForString(arr, string) {
-    for(let i = 0; i < arr.length; i++) {
-        if(arr[i].indexOf(string) > -1) {
-            return true;
-        }
-    };
-    return false;
-}
+
+let preventInstance = {};
 
 function startJustRead(tab) {
-    const tabId = tab ? tab.id : null; // Defaults to the current tab
+    if (tab) {
+        executeScripts(tab.id);
+    } else {
+        chrome.tabs.query(
+            { currentWindow: true, active: true },
+            (tabArray) => executeScripts(tabArray[0].id)
+        );
+    }
+}
 
-    // Load our external scripts, then our content script
-    chrome.tabs.executeScript(tabId, { file: "/external-libraries/datGUI/dat.gui.min.js", allFrames: false});
-    chrome.tabs.executeScript(tabId, { file: "/external-libraries/DOMPurify/purify.min.js", allFrames: false});
-    chrome.tabs.executeScript(tabId, { file: "/external-libraries/Rangy/rangy.min.js", allFrames: false});
-    chrome.tabs.executeScript(tabId, { file: "/external-libraries/Rangy/rangy-classapplier.min.js", allFrames: false});
-    chrome.tabs.executeScript(tabId, { file: "/external-libraries/Rangy/rangy-highlighter.min.js", allFrames: false});
-    chrome.tabs.executeScript(tabId, { file: "/external-libraries/Rangy/rangy-textrange.min.js", allFrames: false});
-    chrome.tabs.executeScript(tabId, { file: "content_script.js", allFrames: false});
+function executeScripts(tabId) {
+    if (preventInstance[tabId]) return;
+
+    preventInstance[tabId] = true;
+    setTimeout(() => delete preventInstance[tabId], 10000);
 
     // Add a badge to signify the extension is in use
     chrome.browserAction.setBadgeBackgroundColor({color:[242, 38, 19, 230]});
@@ -34,14 +33,26 @@ function startJustRead(tab) {
         }
     });
 
-    setTimeout(function() {
-        chrome.browserAction.setBadgeText({text:""});
-    }, 2000);
+    // Load our external scripts, then our content script
+    Promise.all([
+        chrome.tabs.executeScript(tabId, { file: "/external-libraries/datGUI/dat.gui.min.js", allFrames: false}),
+        chrome.tabs.executeScript(tabId, { file: "/external-libraries/DOMPurify/purify.min.js", allFrames: false}),
+        chrome.tabs.executeScript(tabId, { file: "/external-libraries/Rangy/rangy.min.js", allFrames: false}),
+        chrome.tabs.executeScript(tabId, { file: "/external-libraries/Rangy/rangy-classapplier.min.js", allFrames: false}),
+        chrome.tabs.executeScript(tabId, { file: "/external-libraries/Rangy/rangy-highlighter.min.js", allFrames: false}),
+        chrome.tabs.executeScript(tabId, { file: "/external-libraries/Rangy/rangy-textrange.min.js", allFrames: false}),
+    ]).then(() => {
+        chrome.tabs.executeScript(tabId, { file: "content_script.js", allFrames: false})
+
+        setTimeout(function() {
+            chrome.browserAction.setBadgeText({text:""});
+        }, 1000);
+    });
 }
 
 function startSelectText() {
     chrome.tabs.executeScript(null, {
-        code: 'var useText = true;' // Ghetto way of signaling to select text instead of
+        code: 'let useText = true;' // Ghetto way of signaling to select text instead of
     }, function() {                 // using Chrome messages
         startJustRead();
     });
@@ -56,21 +67,6 @@ function createPageCM() {
          onclick: startJustRead
     });
 }
-function createHighlightCM() {
-    // Create an entry to allow user to use currently selected text
-    highlightCMId = chrome.contextMenus.create({
-        title: "View this selection in Just Read",
-        id: "highlightCM",
-        contexts:["selection"],
-        onclick: function(info, tab) {
-            chrome.tabs.executeScript(null, {
-                code: 'var textToRead = true'
-            }, function() {
-                startJustRead();
-            });
-        }
-    });
-}
 function createLinkCM() {
     // Create an entry to allow user to open a given link using Just read
     linkCMId = chrome.contextMenus.create({
@@ -82,7 +78,7 @@ function createLinkCM() {
                 { url: info.linkUrl, active: false },
                 function(newTab) {
                     chrome.tabs.executeScript(newTab.id, {
-                        code: 'var runOnLoad = true'
+                        code: 'let runOnLoad = true'
                     }, function() {
                         startJustRead(newTab);
                     });
@@ -102,6 +98,8 @@ function createAutorunCM() {
     });
 }
 function addSiteToAutorunList(info, tab) {
+    // TODO strip jr=on from query params
+
     chrome.storage.sync.get('auto-enable-site-list', function(result) {
         let url = new URL((info != null && info.pageUrl) || tab.url);
         let entry;
@@ -119,7 +117,7 @@ function addSiteToAutorunList(info, tab) {
                 chrome.storage.sync.set({
                     'auto-enable-site-list': [...currentDomains, entry],
                 }, function() {
-                    if(checkArrayForString(currentDomains, url.hostname)) {
+                    if(currentDomains.indexOf(url.hostname)) {
                         console.log("Just Read auto-run entry added.\n\nWarning: An auto-run entry with the same hostname has already been added. Be careful to not add two duplicates.");
                     } else {
                         console.log('Just Read auto-run entry added.');
@@ -135,9 +133,9 @@ function addSiteToAutorunList(info, tab) {
 }
 
 
-let pageCMId = highlightCMId = linkCMId = autorunCMId = undefined;
+let pageCMId = linkCMId = autorunCMId = undefined;
 function updateCMs() {
-    chrome.storage.sync.get(["enable-pageCM", "enable-highlightCM", "enable-linkCM", "enable-autorunCM"], function (result) {
+    chrome.storage.sync.get(["enable-pageCM", "enable-linkCM", "enable-autorunCM"], function (result) {
         let size = 0;
 
         for(let key in result) {
@@ -151,16 +149,6 @@ function updateCMs() {
                     if(typeof pageCMId != "undefined") {
                         chrome.contextMenus.remove("pageCM");
                         pageCMId = undefined;
-                    }
-                }
-            } else if(key === "enable-highlightCM") {
-                if(result[key]) {
-                    if(typeof highlightCMId == "undefined")
-                        createHighlightCM();
-                } else {
-                    if(typeof highlightCMId != "undefined") {
-                        chrome.contextMenus.remove("highlightCM");
-                        highlightCMId = undefined;
                     }
                 }
             }
@@ -190,7 +178,6 @@ function updateCMs() {
 
         if(size === 0) {
             createPageCM();
-            createHighlightCM();
             createLinkCM();
             createAutorunCM();
         }
@@ -257,6 +244,16 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     else if (request.resetJRLastChecked) {
         chrome.storage.sync.set({'jrLastChecked': ''});
     }
+    else if (request.tabOpenedJR) {
+        const tabURL = request.tabOpenedJR.href.split('?')[0];
+        for (const tabId in preventInstance) {
+            chrome.tabs.get(parseInt(tabId), (tab) => {
+                if (tab.url.split('?')[0] === tabURL) {
+                    setTimeout(() => delete preventInstance[tabId], 1000);
+                }
+            });
+        }
+    }
 });
 
 // Create an entry to allow user to select an element to read from
@@ -269,6 +266,8 @@ chrome.contextMenus.create({
 });
 
 chrome.tabs.onUpdated.addListener( function (tabId, changeInfo, tab) {
+    if(preventInstance[tabId]) return;
+
     const change = Date.now() - lastClosed;
     if (changeInfo.status === 'complete' && change > 300) {
         // Auto enable on sites specified
@@ -280,17 +279,27 @@ chrome.tabs.onUpdated.addListener( function (tabId, changeInfo, tab) {
 
                 if(typeof siteList !== "undefined") {
                     for(let i = 0; i < siteList.length; i++) {
-                        const regex = new RegExp(siteList[i], "i");
+                        // Allows the format `text.npr.org>5000` to autorun JR after 5 seconds on text.npr.org
+                        const entry = siteList[i];
+                        const splitEntry = entry.split('>');
+                        const entryRegex = splitEntry[0];
+                        const urlRegex = new RegExp(entryRegex, "i");
+                        const entryDelay = splitEntry.length > 1 ? splitEntry[1] : 0;
 
-                        if( url.match( regex ) ) {
+                        if( url.match( urlRegex ) ) {
                             chrome.tabs.executeScript(tabId, {
-                                code: 'var runOnLoad = true;' // Ghetto way of signaling to run on load
+                                code: 'let runOnLoad = true;' // Ghetto way of signaling to run on load
                             }, function() {                   // instead of using Chrome messages
-                                startJustRead(tab);
+                                setTimeout(() => startJustRead(tab), entryDelay);
                             });
                             return;
                         }
                     }
+                }
+
+                // Check if jr=on is set, autorun if so
+                if(new URL(url).searchParams.get('jr') === 'on') {
+                    startJustRead(tab);
                 }
             }
         });
